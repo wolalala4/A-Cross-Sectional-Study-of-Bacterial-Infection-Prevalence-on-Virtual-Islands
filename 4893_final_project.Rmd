@@ -1,0 +1,153 @@
+---
+title: "4893 Final Project"
+author: "Chenghan Yue"
+date: "4/26/2020"
+output: word_document
+---
+
+```{r}
+library(caret)
+
+dat = read.csv("C:/Users/yuech/Downloads/stat 4052/data_banknote_authentication.csv", header = T)
+
+```
+
+
+##Create a validation Dataset
+```{r}
+### create a list of 80% of the rows in the original dataset we can use for training
+validation_index = createDataPartition(dat$Class, p = 0.80, list = F)
+
+### select 20% of the data for validation
+validation = dat[-validation_index,]
+
+### use the remaining 80% of data to training and testing the models
+dat = dat[validation_index,]
+```
+
+
+##Summarize Dataset
+```{r}
+## dimensions of dataset
+dim(dat)
+```
+According to the output, I need to see 1098 instances and 5 attributes.
+
+
+##Type of Attributes
+```{r}
+## list types for each attribute
+sapply(dat, class)
+
+```
+
+
+##Peak at the Data
+```{r}
+## take a peak at the first 5 rows of the data
+head(dat)
+```
+
+
+## levels of the Class
+```{r}
+## list the levels for the class
+levels(dat$Class)
+```
+
+
+## Class Distribution
+```{r}
+## summarize the class distribution
+percentage = prop.table(table(dat$Class))*100
+cbind(freq = table(dat$Class), percentage = percentage)
+```
+
+
+## statistical Summary
+```{r}
+## summarize attribute distributions
+summary(dat)
+```
+
+
+## Univariate Plots
+```{r}
+x = dat[,1:4]
+y = dat[,5]
+par(mfrow = c(1,4))
+for (i in 1:4) {
+  boxplot(x[,i],main = names(dat)[i])
+}
+## barplot for class breakdown
+plot(y)
+```
+
+
+## multivariate Plots
+```{r}
+##scatterplot matrix
+featurePlot(x=x,y=y, plot = "box")
+
+## density plots for each attribute by class value
+scales = list(x=list(relation = "free"), y = list(relation = "free"))
+featurePlot(x=x,y=y, plot = "density", scales = scales)
+```
+
+
+## Evaluate Some Algorithms
+```{r}
+## Run algorithms using 10-fold croos validation
+control = trainControl(method = "cv", number = 10)
+metric = "Accuracy"
+```
+
+
+## Build Model
+```{r}
+## LDA
+set.seed(4893)
+fit.lda = train(Class~., data = dat, method = "lda", metric = metric, trControl = control)
+## CART
+set.seed(4893)
+fit.cart = train(Class~., data = dat, method = "rpart", metric = metric, trControl = control)
+
+
+```
+
+
+```{r}
+## knn
+set.seed(4893)
+trctrl = trainControl(method = "repeatedcv", number = 10, repeats = 3)
+fit.knn = train(Class~., data = dat, method = "knn", trControl = trctrl, preProcess = c("center","scale"), tuneLength = 10)
+fit.knn
+
+```
+
+
+## Select Best Models
+```{r}
+## summarize accuracy of models
+results = resamples(list(lda = fit.lda, cart = fit.cart))
+summary(results)
+
+## compare accuracy of models
+dotplot(results)
+print(fit.lda)
+```
+
+
+## Make predictions
+```{r}
+set.seed(4893)
+## estimate skill of knn on the validation dataset
+predictions = predict(fit.knn, validation)
+confusionMatrix(predictions, validation$Class)
+```
+
+```{r}
+set.seed(4893)
+predictions_2 = predict(fit.lda, validation)
+confusionMatrix(predictions_2, validation$Class)
+```
